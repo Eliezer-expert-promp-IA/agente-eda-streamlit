@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from workflow import criar_fluxo_agente
 import os
 import pandas as pd
-import base64
+import re
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -22,6 +22,9 @@ def inicializar_estado_sessao():
         st.session_state.agente_analise = None
     if "df" not in st.session_state:
         st.session_state.df = None
+    # Cria um diretório para armazenar os gráficos temporariamente
+    if not os.path.exists("temp_charts"):
+        os.makedirs("temp_charts")
 
 inicializar_estado_sessao()
 

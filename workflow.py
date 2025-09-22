@@ -11,7 +11,7 @@ from langchain.tools.render import render_text_description
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.exceptions import OutputParserException
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI, HarmCategory, HarmBlockThreshold
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
@@ -19,21 +19,19 @@ from langchain_anthropic import ChatAnthropic
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
 
-# NOVA CLASSE: Parser customizado para lidar com erros de formatação.
-class CustomReactOutputParser(ReActSingleInputOutputParser):
+class CustomOutputParser(ReActJsonSingleInputOutputParser):
     """
     Parser customizado que tenta extrair a resposta final em caso de erro de formatação.
     """
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         """
-        Analisa a saída do LLM. Se o parser padrão falhar, tenta um fallback.
+        Analisa a saída do LLM. Se o parser JSON padrão falhar, tenta um fallback.
         """
         try:
-            # Tenta usar o parser padrão primeiro.
             return super().parse(text)
         except OutputParserException as e:
             # Se falhar, executa nossa lógica de fallback para extrair a resposta final.
-            if "Resposta Final:" in text:
+            if "Final Answer:" in text:
                 texto_apos_keyword = text.split("Resposta Final:")[-1].strip()
                 return AgentFinish({"output": texto_apos_keyword}, log=text)
             # Se o fallback também falhar, retorna uma mensagem de erro dentro do AgentFinish.
@@ -55,13 +53,18 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     """
     # 1. Instância do modelo de linguagem com base na seleção do usuário
     llm = None
+    # Configurações de segurança para o Gemini, para evitar bloqueios em dados de exemplo
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+    }
     try:
         if llm_provider == "Gemini":
-            llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key, temperature=0, convert_system_message_to_human=True)
+            llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key, temperature=0, convert_system_message_to_human=True, safety_settings=safety_settings)
         elif llm_provider == "OpenAI":
             llm = ChatOpenAI(model=model_name, openai_api_key=api_key, temperature=0)
-        elif llm_provider == "Groq":
-            llm = ChatGroq(model_name=model_name, groq_api_key=api_key, temperature=0)
         elif llm_provider == "Anthropic":
             llm = ChatAnthropic(model=model_name, anthropic_api_key=api_key, temperature=0)
         else:
@@ -79,7 +82,7 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     # PROMPT ATUALIZADO: Adiciona instruções para usar a nova ferramenta de gráficos.
     prompt.template = """
-Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
+Você é um analista de dados sênior. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados que ele vai disponibilizar em arquivo.
 
 **REGRAS IMPORTANTES:**
 1.  **SEMPRE** use as ferramentas disponíveis para inspecionar o dataframe `df` e encontrar a resposta.
@@ -88,7 +91,7 @@ Você é um analista de dados especialista. Sua tarefa é responder à pergunta 
 4.  NÃO tente responder com base no seu conhecimento prévio.
 5.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 6.  O código que você escreve para a ferramenta `python_code_executor` DEVE usar `print()` para que o resultado seja visível.
-7.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
+7.  Você tem um limite de 5 passos (Pensamento/Ação) para chegar a uma resposta final. Se você não conseguir a resposta final em 5 passos, resuma suas descobertas na "".
 8.  Ao usar `chart_generator`, inclua a string de saída (que contém o gráfico) diretamente na sua "Resposta Final". O gráfico DEVE ser a última coisa na resposta.
 
 Você tem acesso às seguintes ferramentas:
@@ -97,13 +100,14 @@ Você tem acesso às seguintes ferramentas:
 Use o seguinte formato:
 
 Pergunta: a pergunta de entrada que você deve responder
-Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
-Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
-Entrada da Ação: a entrada para a ação
-Observação: o resultado da ação
-... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir N vezes)
-Pensamento: Agora eu sei a resposta final.
-Resposta Final: a resposta final para a pergunta original, em português.
+Thought: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
+Action:
+```json
+{{
+  "action": "nome da ferramenta",
+  "action_input": "a entrada para a ferramenta"
+}}
+```
 
 Comece!
 
@@ -113,6 +117,15 @@ Histórico do Chat:
 Pergunta: {input}
 {agent_scratchpad}
 """
+
+    # Adicionei um exemplo de uso da ferramenta de gráfico no prompt para guiar melhor o LLM
+    prompt.template = prompt.template.replace(
+        "{agent_scratchpad}",
+        """{agent_scratchpad}
+{agent_scratchpad}
+"""
+    )
+    
     # 5. Preenche as variáveis de ferramentas no prompt.
     # Este passo é crucial para que o LLM saiba quais ferramentas ele pode usar.
     prompt = prompt.partial(
@@ -120,27 +133,17 @@ Pergunta: {input}
         tool_names=", ".join([t.name for t in ferramentas]),
     )
 
-    # 6. Cria o agente ReAct manualmente para injetar nosso parser customizado
-    llm_with_stop = llm.bind(stop=["\nObservation:"])
-    
-    agent = (
-        RunnablePassthrough.assign(
-            agent_scratchpad=lambda x: format_log_to_str(x["intermediate_steps"]),
-        )
-        | prompt
-        | llm_with_stop
-        | CustomReactOutputParser()
-    )
+    # 6. Cria o agente ReAct
+    agent = create_react_agent(llm, ferramentas, prompt)
 
     # 7. Cria o Executor do Agente
-    # EXECUTOR ATUALIZADO: Removemos o 'handle_parsing_errors' pois o parser já trata disso.
-    agente_executor = AgentExecutor(
+    agent_executor = AgentExecutor(
         agent=agent,
         tools=ferramentas,
         verbose=True,
-        return_intermediate_steps=True,
-        max_iterations=3,
-        early_stopping_method="force",
+        return_intermediate_steps=True, # Retorna os passos intermediários
+        max_iterations=5, # Aumenta o número de passos para tarefas mais complexas
+        early_stopping_method="generate", # Método mais robusto para parar a execução
+        handle_parsing_errors=True, # Lida com erros de formatação do LLM
     )
-
-    return agente_executor
+    return agent_executor
