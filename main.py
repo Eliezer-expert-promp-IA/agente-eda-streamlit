@@ -129,24 +129,22 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
                     st.markdown("\n---\n".join(passos_formatados))
 
                 # Exibe a resposta final do agente
-                resposta_final = resposta.get("output", "Desculpe, não consegui obter uma resposta.")
+                resposta_final = resposta.get("output", "Desculpe, não consegui obter uma resposta.")                
                 
                 # Lógica para extrair e exibir o gráfico, se houver
-                chart_tag = "[CHART_BASE64]"
+                chart_tag = "[CHART_PATH:"
                 if chart_tag in resposta_final:
                     # Separa o texto da string do gráfico
-                    partes = resposta_final.split(chart_tag)
-                    texto = partes[0]
-                    dados_base64 = partes[1]
+                    texto, caminho_imagem = resposta_final.split(chart_tag)
+                    caminho_imagem = caminho_imagem.strip()[:-1] # Remove o ']' final
 
                     # Exibe o texto
                     if texto.strip():
                         st.write(texto)
                     
-                    # Decodifica e exibe a imagem
+                    # Exibe a imagem do arquivo
                     try:
-                        imagem_bytes = base64.b64decode(dados_base64)
-                        st.image(imagem_bytes, caption="Gráfico gerado pelo agente.", use_column_width=True)
+                        st.image(caminho_imagem, caption="Gráfico gerado pelo agente.", use_column_width=True)
                     except Exception as img_e:
                         st.error(f"Erro ao decodificar e exibir o gráfico: {img_e}")
                 else:

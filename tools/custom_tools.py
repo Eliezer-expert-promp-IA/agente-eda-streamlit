@@ -5,6 +5,7 @@ from langchain.tools import tool
 import io
 import base64
 import matplotlib.pyplot as plt
+import tempfile
 import traceback
 import seaborn as sns
 
@@ -62,26 +63,25 @@ def criar_ferramentas_analise(df: pd.DataFrame):
         Ação: chart_generator
         Entrada da Ação: import seaborn as sns\nimport matplotlib.pyplot as plt\nsns.barplot(data=df, x='categoria', y='valor')\nplt.title('Gráfico de Barras')
         Observação: [CHART_BASE64]...
-        Pensamento: Eu tenho o gráfico. Agora vou apresentar a resposta final.
-        Resposta Final: Aqui está o gráfico de barras que você solicitou:\n[CHART_BASE64]...
+        Pensamento: O gráfico foi gerado e salvo em um arquivo. Agora vou apresentar a resposta final com o caminho do arquivo.
+        Resposta Final: Aqui está o gráfico de barras que você solicitou:\n[CHART_PATH: /tmp/tmp12345.png]
         """
         local_vars = {"df": df, "pd": pd, "plt": plt, "sns": sns, "io": io}
         
         # Cria uma nova figura para cada gráfico para evitar sobreposição
-        fig = plt.figure()
+        fig, ax = plt.subplots()
         
         try:
-            exec(code, {}, local_vars)
+            # Passamos o 'ax' para a execução do código, para que o gráfico seja plotado nele
+            local_vars['ax'] = ax
+            exec(code, {"df": df, "pd": pd, "plt": plt, "sns": sns}, {"ax": ax})
 
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png', bbox_inches='tight')
-            buf.seek(0)
-            
-            image_base64 = base64.b64encode(buf.read()).decode('utf-8')
-            
-            plt.close(fig)
+            # Salva a figura em um arquivo temporário
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png", dir="temp_charts") as tmpfile:
+                fig.savefig(tmpfile.name, format='png', bbox_inches='tight')
+                plt.close(fig)
+                return f"[CHART_PATH:{tmpfile.name}]"
 
-            return f"[CHART_BASE64]{image_base64}"
         except Exception as e:
             plt.close(fig)
             return f"Erro ao gerar o gráfico: {e}\n{traceback.format_exc()}"
