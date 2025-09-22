@@ -1,10 +1,15 @@
 # workflow.py
 
 # Importa as bibliotecas e módulos necessários
+from typing import Union
 import pandas as pd
 from langchain import hub
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.agents import AgentFinish
+from langchain.agents import AgentExecutor
+from langchain.agents.format_scratchpad import format_log_to_str
+from langchain.agents.output_parsers.react_single_input import ReActSingleInputOutputParser
+from langchain.tools.render import render_text_description
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.exceptions import OutputParserException
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -14,27 +19,25 @@ from langchain_anthropic import ChatAnthropic
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
 
-# NOVA FUNÇÃO: Resgata a resposta final se o parser padrão falhar.
-def _lidar_com_erro_de_parse(error: OutputParserException) -> AgentFinish:
+# NOVA CLASSE: Parser customizado para lidar com erros de formatação.
+class CustomReactOutputParser(ReActSingleInputOutputParser):
     """
-    Função de fallback para analisar a saída do LLM e extrair a resposta final.
-    É chamada quando o parser padrão falha.
+    Parser customizado que tenta extrair a resposta final em caso de erro de formatação.
     """
-    # A saída bruta do LLM que causou o erro está no atributo 'llm_output'.
-    saida_llm = error.llm_output
-    
-    # Procura pela nossa palavra-chave de resposta final na saída bruta.
-    if "Resposta Final:" in saida_llm:
-        # Extrai o texto que vem depois da palavra-chave.
-        texto_apos_keyword = saida_llm.split("Resposta Final:")[-1].strip()
-        
-        # Retorna um objeto AgentFinish, que o executor entende como uma conclusão bem-sucedida.
-        # Isso popula o campo 'output' que o Streamlit usa para exibir a resposta.
-        return AgentFinish({"output": texto_apos_keyword}, log=saida_llm)
-    
-    # Se não encontrar a resposta final, retorna uma mensagem de erro genérica.
-    log_completo = str(error)
-    return AgentFinish({"output": f"Desculpe, não consegui extrair uma resposta final. Erro: {log_completo}"}, log=log_completo)
+    def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
+        """
+        Analisa a saída do LLM. Se o parser padrão falhar, tenta um fallback.
+        """
+        try:
+            # Tenta usar o parser padrão primeiro.
+            return super().parse(text)
+        except OutputParserException as e:
+            # Se falhar, executa nossa lógica de fallback para extrair a resposta final.
+            if "Resposta Final:" in text:
+                texto_apos_keyword = text.split("Resposta Final:")[-1].strip()
+                return AgentFinish({"output": texto_apos_keyword}, log=text)
+            # Se o fallback também falhar, retorna uma mensagem de erro dentro do AgentFinish.
+            return AgentFinish({"output": f"Desculpe, ocorreu um erro de formatação e não consegui extrair uma resposta final. Detalhes: {e}"}, log=str(e))
 
 
 def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_name: str):
@@ -107,17 +110,24 @@ Histórico do Chat:
 Pergunta: {input}
 Pensamento:{agent_scratchpad}
 """
-
-    # 5. Cria o agente ReAct
-    agente = create_react_agent(llm, ferramentas, prompt)
+    # 5. Cria o agente ReAct manualmente para injetar nosso parser customizado
+    llm_with_stop = llm.bind(stop=["\nObservation:"])
+    
+    agent = (
+        RunnablePassthrough.assign(
+            agent_scratchpad=lambda x: format_log_to_str(x["intermediate_steps"]),
+        )
+        | prompt
+        | llm_with_stop
+        | CustomReactOutputParser()
+    )
 
     # 6. Cria o Executor do Agente
-    # EXECUTOR ATUALIZADO: Usa a função personalizada para tratar erros de formatação.
+    # EXECUTOR ATUALIZADO: Removemos o 'handle_parsing_errors' pois o parser já trata disso.
     agente_executor = AgentExecutor(
         agent=agente,
         tools=ferramentas,
         verbose=True,
-        handle_parsing_errors=_lidar_com_erro_de_parse, # <- MUDANÇA PRINCIPAL
         return_intermediate_steps=True,
         max_iterations=3,
         early_stopping_method="force",
