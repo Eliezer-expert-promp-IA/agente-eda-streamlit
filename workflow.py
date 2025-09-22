@@ -50,17 +50,16 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     #    Este prompt já define o formato de Pensamento/Ação/Observação
     prompt = hub.pull("hwchase17/react-chat")
 
-    # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
+        # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
     prompt.template = """
 Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
 
 **REGRAS IMPORTANTES:**
-1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. 
-NÃO tente responder com base no seu conhecimento prévio.
+1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. NÃO tente responder com base no seu conhecimento prévio.
 2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
+4.  Você tem um limite estrito de 3 passos (Pensamento/Ação/Observação). Se você não encontrar a resposta final exata dentro desses 3 passos, sua "Resposta Final" DEVE ser um resumo das descobertas que você fez e indicar que o limite foi atingido. Não termine sem uma "Resposta Final".
 
 Você tem acesso às seguintes ferramentas:
 {tools}
@@ -72,9 +71,9 @@ Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve se
 Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
 Entrada da Ação: a entrada para a ação
 Observação: o resultado da ação
-... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir N vezes)
-Pensamento: Agora eu sei a resposta final.
-Resposta Final: a resposta final para a pergunta original, em português.
+... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir no máximo 3 vezes)
+Pensamento: Agora eu sei a resposta final ou preciso resumir minhas descobertas.
+Resposta Final: a resposta final para a pergunta original ou um resumo do que foi encontrado, em português.
 
 Comece!
 
@@ -98,7 +97,8 @@ Pensamento:{agent_scratchpad}
         handle_parsing_errors=True, # Lida com erros de formatação da saída do LLM
         return_intermediate_steps=True, # Retorna os pensamentos e ações do agente
         max_iterations=3, # Define um limite de 3 ciclos de pensamento/ação
-        early_stopping_method="generate", # Força o agente a gerar uma resposta final se atingir o limite
+        # CORREÇÃO: Altere 'generate' para 'force'
+        early_stopping_method="force", 
     )
 
     return agente_executor
