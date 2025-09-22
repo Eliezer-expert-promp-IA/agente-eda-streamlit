@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from workflow import criar_fluxo_agente
 import os
 import pandas as pd
+import base64
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -129,9 +130,30 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
 
                 # Exibe a resposta final do agente
                 resposta_final = resposta.get("output", "Desculpe, não consegui obter uma resposta.")
-                st.write(resposta_final)
                 
-                # Adiciona a resposta do agente ao histórico
+                # Lógica para extrair e exibir o gráfico, se houver
+                chart_tag = "[CHART_BASE64]"
+                if chart_tag in resposta_final:
+                    # Separa o texto da string do gráfico
+                    partes = resposta_final.split(chart_tag)
+                    texto = partes[0]
+                    dados_base64 = partes[1]
+
+                    # Exibe o texto
+                    if texto.strip():
+                        st.write(texto)
+                    
+                    # Decodifica e exibe a imagem
+                    try:
+                        imagem_bytes = base64.b64decode(dados_base64)
+                        st.image(imagem_bytes, caption="Gráfico gerado pelo agente.", use_column_width=True)
+                    except Exception as img_e:
+                        st.error(f"Erro ao decodificar e exibir o gráfico: {img_e}")
+                else:
+                    # Se não houver gráfico, apenas exibe a resposta
+                    st.write(resposta_final)
+                
+                # Adiciona a resposta COMPLETA do agente ao histórico para consistência
                 st.session_state.mensagens.append({"role": "assistant", "content": resposta_final})
             except Exception as e:
                 st.error("Ocorreu um erro durante a execução do agente. Veja os detalhes abaixo:")

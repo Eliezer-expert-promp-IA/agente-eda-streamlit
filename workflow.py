@@ -77,16 +77,19 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     prompt = hub.pull("hwchase17/react-chat")
 
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
-    # PROMPT ATUALIZADO: Usa "Resposta Final:" para manter a consistência em português.
+    # PROMPT ATUALIZADO: Adiciona instruções para usar a nova ferramenta de gráficos.
     prompt.template = """
 Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
 
 **REGRAS IMPORTANTES:**
-1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. 
-NÃO tente responder com base no seu conhecimento prévio.
-2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
-3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
+1.  **SEMPRE** use as ferramentas disponíveis para inspecionar o dataframe `df` e encontrar a resposta.
+2.  Para análise, cálculo ou manipulação de dados, use a ferramenta `python_code_executor`.
+3.  Se o usuário pedir um gráfico ou visualização, **SEMPRE** use a ferramenta `chart_generator`.
+4.  NÃO tente responder com base no seu conhecimento prévio.
+5.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
+6.  O código que você escreve para a ferramenta `python_code_executor` DEVE usar `print()` para que o resultado seja visível.
+7.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
+8.  Ao usar `chart_generator`, inclua a string de saída (que contém o gráfico) diretamente na sua "Resposta Final". O gráfico DEVE ser a última coisa na resposta.
 
 Você tem acesso às seguintes ferramentas:
 {tools}
