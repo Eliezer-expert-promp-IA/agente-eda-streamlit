@@ -59,7 +59,9 @@ Você é um analista de dados especialista. Sua tarefa é responder à pergunta 
 1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. NÃO tente responder com base no seu conhecimento prévio.
 2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite estrito de 3 passos (Pensamento/Ação/Observação). Se você não encontrar a resposta final exata dentro desses 3 passos, sua "Resposta Final" DEVE ser um resumo das descobertas que você fez e indicar que o limite foi atingido. Não termine sem uma "Resposta Final".
+4.  Você tem um limite estrito de 4 passos (Pensamento/Ação/Observação). 
+Se você não encontrar a resposta final exata dentro desses 4 passos, sua "Resposta Final" DEVE ser um resumo das descobertas que você fez e indicar que o limite foi atingido. 
+Não termine sem uma "Resposta Final" que deve aparecer o output do usuário.
 
 Você tem acesso às seguintes ferramentas:
 {tools}
@@ -96,7 +98,7 @@ Pensamento:{agent_scratchpad}
         verbose=True,  # Exibe os passos do agente no console, ótimo para depuração
         handle_parsing_errors=True, # Lida com erros de formatação da saída do LLM
         return_intermediate_steps=True, # Retorna os pensamentos e ações do agente
-        max_iterations=3, # Define um limite de 3 ciclos de pensamento/ação
+        max_iterations=4, # Define um limite de 3 ciclos de pensamento/ação
         # CORREÇÃO: Altere 'generate' para 'force'
         early_stopping_method="force", 
     )
