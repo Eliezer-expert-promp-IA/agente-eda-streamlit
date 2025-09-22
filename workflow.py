@@ -53,8 +53,14 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
     prompt.template = """
+<<<<<<< HEAD
 Você é um analista de dados especialista. Para responder à pergunta do usuário, você DEVE usar a ferramenta 'python_code_executor' para executar código Python e inspecionar o dataframe `df`.
 NÃO tente responder com base no seu conhecimento prévio.
+=======
+Você é um analista sênior especialista em análise de dados. Sua tarefa é ajudar o usuário a extrair insights de um arquivo de dados.
+Você deve tentar resolver a tarefa em no máximo 3 passos (Pensamento/Ação). Se você não conseguir concluir a tarefa em 3 passos, 
+resuma suas descobertas e forneça uma resposta final com base nas informações que você coletou até o momento.
+>>>>>>> af2332d921af8dae97c3634a498a365bf3e404ed
 
 Siga estritamente este processo:
 1.  **Pensamento**: Pense em qual código Python você precisa executar para responder à pergunta.
