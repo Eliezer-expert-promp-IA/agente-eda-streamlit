@@ -115,20 +115,25 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
                 "chat_history": [msg for msg in st.session_state.mensagens if msg['role'] != 'assistant' or 'passos:' not in msg['content']]
             }
 
-            # Invoca o agente
-            resposta = st.session_state.agente_analise.invoke(entrada_agente)
+            try:
+                # Invoca o agente
+                resposta = st.session_state.agente_analise.invoke(entrada_agente)
 
-            # Exibe os passos intermediários do agente (pensamento e ações)
-            with st.expander("Ver Passos do Agente"):
-                passos_formatados = []
-                for passo in resposta.get("intermediate_steps", []):
-                    acao, observacao = passo
-                    passos_formatados.append(f"**Pensamento:**\n{acao.log}\n\n**Observação:**\n```\n{observacao}\n```")
-                st.markdown("\n---\n".join(passos_formatados))
+                # Exibe os passos intermediários do agente (pensamento e ações)
+                with st.expander("Ver Passos do Agente"):
+                    passos_formatados = []
+                    for passo in resposta.get("intermediate_steps", []):
+                        acao, observacao = passo
+                        passos_formatados.append(f"**Pensamento:**\n{acao.log}\n\n**Observação:**\n```\n{observacao}\n```")
+                    st.markdown("\n---\n".join(passos_formatados))
 
-            # Exibe a resposta final do agente
-            resposta_final = resposta.get("output", "Desculpe, não consegui obter uma resposta.")
-            st.write(resposta_final)
-            
-            # Adiciona a resposta do agente ao histórico
-            st.session_state.mensagens.append({"role": "assistant", "content": resposta_final})
+                # Exibe a resposta final do agente
+                resposta_final = resposta.get("output", "Desculpe, não consegui obter uma resposta.")
+                st.write(resposta_final)
+                
+                # Adiciona a resposta do agente ao histórico
+                st.session_state.mensagens.append({"role": "assistant", "content": resposta_final})
+            except Exception as e:
+                st.error("Ocorreu um erro durante a execução do agente. Veja os detalhes abaixo:")
+                st.exception(e)
+                st.session_state.mensagens.append({"role": "assistant", "content": f"Erro na execução: {e}"})

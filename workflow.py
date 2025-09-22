@@ -53,38 +53,28 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
     prompt.template = """
-<<<<<<< HEAD
-Você é um analista de dados especialista. Para responder à pergunta do usuário, você DEVE usar a ferramenta 'python_code_executor' para executar código Python e inspecionar o dataframe `df`.
+Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
+
+**REGRAS IMPORTANTES:**
+1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. 
 NÃO tente responder com base no seu conhecimento prévio.
-=======
-Você é um analista sênior especialista em análise de dados. Sua tarefa é ajudar o usuário a extrair insights de um arquivo de dados.
-Você deve tentar resolver a tarefa em no máximo 3 passos (Pensamento/Ação). Se você não conseguir concluir a tarefa em 3 passos, 
-resuma suas descobertas e forneça uma resposta final com base nas informações que você coletou até o momento.
->>>>>>> af2332d921af8dae97c3634a498a365bf3e404ed
+2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
+3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
+4.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
 
-Siga estritamente este processo:
-1.  **Pensamento**: Pense em qual código Python você precisa executar para responder à pergunta.
-2.  **Ação**: Use a ferramenta `python_code_executor`.
-3.  **Entrada da Ação**: Escreva o código Python que você pensou. O código DEVE usar `print()` para que o resultado seja visível.
-4.  **Observação**: Analise o resultado do código.
-5.  Repita os passos 1-4 até ter informações suficientes. Se você atingir o limite de 3 passos, resuma suas descobertas e forneça uma resposta final.
-
-**Importante**: O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
- 
 Você tem acesso às seguintes ferramentas:
-
 {tools}
 
 Use o seguinte formato:
 
 Pergunta: a pergunta de entrada que você deve responder
-Pensamento: você deve sempre pensar sobre o que fazer.
+Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
 Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
 Entrada da Ação: a entrada para a ação
 Observação: o resultado da ação
 ... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir N vezes)
 Pensamento: Agora eu sei a resposta final.
-Resposta Final: a resposta final para a pergunta original
+Resposta Final: a resposta final para a pergunta original, em português.
 
 Comece!
 
