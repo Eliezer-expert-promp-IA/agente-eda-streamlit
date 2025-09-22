@@ -50,23 +50,21 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     #    Este prompt já define o formato de Pensamento/Ação/Observação
     prompt = hub.pull("hwchase17/react-chat")
 
-        # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
+      # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
+    # CORREÇÃO: Ajustado para usar o keyword 'Final Answer:' que o parser espera,
+    # mas mantendo as instruções para que o conteúdo seja em português.
     prompt.template = """
-Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
+Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados em português.
 
 **REGRAS IMPORTANTES:**
 1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. NÃO tente responder com base no seu conhecimento prévio.
 2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite estrito de 4 passos (Pensamento/Ação/Observação). 
-Se você não encontrar a resposta final exata dentro desses 4 passos, sua "Resposta Final" DEVE ser um resumo das descobertas que você fez e indicar que o limite foi atingido. 
-Não termine sem uma "Resposta Final" que deve aparecer o output do usuário.
+4.  Você tem um limite estrito de 3 passos (Pensamento/Ação/Observação). Se não encontrar a resposta exata em 3 passos, sua "Final Answer" DEVE ser um resumo das descobertas que você fez.
+5.  Seu pensamento e sua resposta final DEVEM ser em português.
 
-Você tem acesso às seguintes ferramentas:
-{tools}
-
-Use o seguinte formato:
+Use o seguinte formato EXATAMENTE:
 
 Pergunta: a pergunta de entrada que você deve responder
 Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
@@ -74,8 +72,8 @@ Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
 Entrada da Ação: a entrada para a ação
 Observação: o resultado da ação
 ... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir no máximo 3 vezes)
-Pensamento: Agora eu sei a resposta final ou preciso resumir minhas descobertas.
-Resposta Final: a resposta final para a pergunta original ou um resumo do que foi encontrado, em português.
+Pensamento: Eu agora sei a resposta final ou preciso resumir minhas descobertas. Meu pensamento final é em português.
+Final Answer: A resposta final para a pergunta original ou um resumo do que foi encontrado. A resposta DEVE ser em português.
 
 Comece!
 
