@@ -3,7 +3,8 @@
 # Importa as bibliotecas e módulos necessários
 import pandas as pd
 from langchain import hub
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents import AgentExecutor, create_react_agent, AgentFinish
+from langchain.schema import OutputParserException
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
@@ -11,6 +12,29 @@ from langchain_anthropic import ChatAnthropic
 
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
+
+# NOVA FUNÇÃO: Resgata a resposta final se o parser padrão falhar.
+def _lidar_com_erro_de_parse(error: OutputParserException) -> AgentFinish:
+    """
+    Função de fallback para analisar a saída do LLM e extrair a resposta final.
+    É chamada quando o parser padrão falha.
+    """
+    # A saída bruta do LLM que causou o erro está no atributo 'llm_output'.
+    saida_llm = error.llm_output
+    
+    # Procura pela nossa palavra-chave de resposta final na saída bruta.
+    if "Resposta Final:" in saida_llm:
+        # Extrai o texto que vem depois da palavra-chave.
+        texto_apos_keyword = saida_llm.split("Resposta Final:")[-1].strip()
+        
+        # Retorna um objeto AgentFinish, que o executor entende como uma conclusão bem-sucedida.
+        # Isso popula o campo 'output' que o Streamlit usa para exibir a resposta.
+        return AgentFinish({"output": texto_apos_keyword}, log=saida_llm)
+    
+    # Se não encontrar a resposta final, retorna uma mensagem de erro genérica.
+    log_completo = str(error)
+    return AgentFinish({"output": f"Desculpe, não consegui extrair uma resposta final. Erro: {log_completo}"}, log=log_completo)
+
 
 def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_name: str):
     """
@@ -43,37 +67,36 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
         return e
 
     # 2. Cria a lista de ferramentas que o agente pode usar
-    #    Injetamos o DataFrame diretamente na ferramenta Python REPL
     ferramentas = criar_ferramentas_analise(df)
 
     # 3. Puxa o prompt base para um agente ReAct que funciona com chat
-    #    Este prompt já define o formato de Pensamento/Ação/Observação
     prompt = hub.pull("hwchase17/react-chat")
 
-      # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
-    #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
-    # CORREÇÃO: Ajustado para usar o keyword 'Final Answer:' que o parser espera,
-    # mas mantendo as instruções para que o conteúdo seja em português.
+    # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
+    # PROMPT ATUALIZADO: Usa "Resposta Final:" para manter a consistência em português.
     prompt.template = """
-Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados em português.
+Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
 
 **REGRAS IMPORTANTES:**
-1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. NÃO tente responder com base no seu conhecimento prévio.
+1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. 
+NÃO tente responder com base no seu conhecimento prévio.
 2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite estrito de 3 passos (Pensamento/Ação/Observação). Se não encontrar a resposta exata em 3 passos, sua "Final Answer" DEVE ser um resumo das descobertas que você fez.
-5.  Seu pensamento e sua resposta final DEVEM ser em português.
+4.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
 
-Use o seguinte formato EXATAMENTE:
+Você tem acesso às seguintes ferramentas:
+{tools}
+
+Use o seguinte formato:
 
 Pergunta: a pergunta de entrada que você deve responder
 Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
 Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
 Entrada da Ação: a entrada para a ação
 Observação: o resultado da ação
-... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir no máximo 3 vezes)
-Pensamento: Eu agora sei a resposta final ou preciso resumir minhas descobertas. Meu pensamento final é em português.
-Final Answer: A resposta final para a pergunta original ou um resumo do que foi encontrado. A resposta DEVE ser em português.
+... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir N vezes)
+Pensamento: Agora eu sei a resposta final.
+Resposta Final: a resposta final para a pergunta original, em português.
 
 Comece!
 
@@ -85,20 +108,18 @@ Pensamento:{agent_scratchpad}
 """
 
     # 5. Cria o agente ReAct
-    #    Este agente combina o LLM, as ferramentas e o prompt para tomar decisões.
     agente = create_react_agent(llm, ferramentas, prompt)
 
     # 6. Cria o Executor do Agente
-    #    O executor é o que de fato executa o loop ReAct (Pensamento -> Ação -> Observação).
+    # EXECUTOR ATUALIZADO: Usa a função personalizada para tratar erros de formatação.
     agente_executor = AgentExecutor(
         agent=agente,
         tools=ferramentas,
-        verbose=True,  # Exibe os passos do agente no console, ótimo para depuração
-        handle_parsing_errors=True, # Lida com erros de formatação da saída do LLM
-        return_intermediate_steps=True, # Retorna os pensamentos e ações do agente
-        max_iterations=4, # Define um limite de 3 ciclos de pensamento/ação
-        # CORREÇÃO: Altere 'generate' para 'force'
-        early_stopping_method="force", 
+        verbose=True,
+        handle_parsing_errors=_lidar_com_erro_de_parse, # <- MUDANÇA PRINCIPAL
+        return_intermediate_steps=True,
+        max_iterations=3,
+        early_stopping_method="force",
     )
 
     return agente_executor
