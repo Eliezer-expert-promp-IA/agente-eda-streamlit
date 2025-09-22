@@ -132,7 +132,7 @@ Pergunta: {input}
     # 7. Cria o Executor do Agente
     # EXECUTOR ATUALIZADO: Removemos o 'handle_parsing_errors' pois o parser já trata disso.
     agente_executor = AgentExecutor(
-        agent=agente,
+        agent=agent,
         tools=ferramentas,
         verbose=True,
         return_intermediate_steps=True,
