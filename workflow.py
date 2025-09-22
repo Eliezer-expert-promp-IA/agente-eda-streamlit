@@ -54,7 +54,7 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
     prompt.template = """
 Você é um analista sênior especialista em análise de dados. Sua tarefa é ajudar o usuário a extrair insights de um arquivo de dados.
-Tente resolver a tarefa em no máximo 3 passos.
+Você deve tentar resolver a tarefa em no máximo 3 passos (Pensamento/Ação). Se você não conseguir concluir a tarefa em 3 passos, resuma suas descobertas e forneça uma resposta final com base nas informações que você coletou até o momento.
 
 O DataFrame pandas com os dados já foi carregado e está disponível na variável `df`.
 
@@ -95,6 +95,7 @@ Pensamento:{agent_scratchpad}
         handle_parsing_errors=True, # Lida com erros de formatação da saída do LLM
         return_intermediate_steps=True, # Retorna os pensamentos e ações do agente
         max_iterations=3, # Define um limite de 3 ciclos de pensamento/ação
+        early_stopping_method="generate", # Força o agente a gerar uma resposta final se atingir o limite
     )
 
     return agente_executor
