@@ -4,6 +4,8 @@
 import pandas as pd
 from langchain import hub
 from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.agents import AgentFinish
+from langchain_core.exceptions import OutputParserException
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
@@ -11,6 +13,29 @@ from langchain_anthropic import ChatAnthropic
 
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
+
+# NOVA FUNÇÃO: Resgata a resposta final se o parser padrão falhar.
+def _lidar_com_erro_de_parse(error: OutputParserException) -> AgentFinish:
+    """
+    Função de fallback para analisar a saída do LLM e extrair a resposta final.
+    É chamada quando o parser padrão falha.
+    """
+    # A saída bruta do LLM que causou o erro está no atributo 'llm_output'.
+    saida_llm = error.llm_output
+    
+    # Procura pela nossa palavra-chave de resposta final na saída bruta.
+    if "Resposta Final:" in saida_llm:
+        # Extrai o texto que vem depois da palavra-chave.
+        texto_apos_keyword = saida_llm.split("Resposta Final:")[-1].strip()
+        
+        # Retorna um objeto AgentFinish, que o executor entende como uma conclusão bem-sucedida.
+        # Isso popula o campo 'output' que o Streamlit usa para exibir a resposta.
+        return AgentFinish({"output": texto_apos_keyword}, log=saida_llm)
+    
+    # Se não encontrar a resposta final, retorna uma mensagem de erro genérica.
+    log_completo = str(error)
+    return AgentFinish({"output": f"Desculpe, não consegui extrair uma resposta final. Erro: {log_completo}"}, log=log_completo)
+
 
 def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_name: str):
     """
@@ -43,15 +68,13 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
         return e
 
     # 2. Cria a lista de ferramentas que o agente pode usar
-    #    Injetamos o DataFrame diretamente na ferramenta Python REPL
     ferramentas = criar_ferramentas_analise(df)
 
     # 3. Puxa o prompt base para um agente ReAct que funciona com chat
-    #    Este prompt já define o formato de Pensamento/Ação/Observação
     prompt = hub.pull("hwchase17/react-chat")
 
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
-    #    É crucial informar ao agente sobre o DataFrame 'df' e como usar a ferramenta.
+    # PROMPT ATUALIZADO: Usa "Resposta Final:" para manter a consistência em português.
     prompt.template = """
 Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
 
@@ -86,19 +109,18 @@ Pensamento:{agent_scratchpad}
 """
 
     # 5. Cria o agente ReAct
-    #    Este agente combina o LLM, as ferramentas e o prompt para tomar decisões.
     agente = create_react_agent(llm, ferramentas, prompt)
 
     # 6. Cria o Executor do Agente
-    #    O executor é o que de fato executa o loop ReAct (Pensamento -> Ação -> Observação).
+    # EXECUTOR ATUALIZADO: Usa a função personalizada para tratar erros de formatação.
     agente_executor = AgentExecutor(
         agent=agente,
         tools=ferramentas,
-        verbose=True,  # Exibe os passos do agente no console, ótimo para depuração
-        handle_parsing_errors=True, # Lida com erros de formatação da saída do LLM
-        return_intermediate_steps=True, # Retorna os pensamentos e ações do agente
-        max_iterations=3, # Define um limite de 3 ciclos de pensamento/ação
-        early_stopping_method="generate", # Força o agente a gerar uma resposta final se atingir o limite
+        verbose=True,
+        handle_parsing_errors=_lidar_com_erro_de_parse, # <- MUDANÇA PRINCIPAL
+        return_intermediate_steps=True,
+        max_iterations=3,
+        early_stopping_method="force",
     )
 
     return agente_executor
