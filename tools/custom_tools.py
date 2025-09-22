@@ -21,13 +21,14 @@ def criar_ferramentas_analise(df: pd.DataFrame):
     """
     # Define o escopo local para o REPL, disponibilizando o DataFrame 'df'
     python_repl = PythonAstREPLTool(locals={"df": df})
-    
-    # Você pode adicionar descrições mais detalhadas para as ferramentas se necessário
-    python_repl.description = """
-    Executa código Python. Use esta ferramenta para explorar e analisar os dados.
-    O DataFrame do pandas contendo os dados do usuário já está carregado na variável 'df'.
-    Você pode executar qualquer código pandas em 'df', como 'print(df.head())' ou 'print(df.describe())'.
-    Sempre use 'print()' para retornar os resultados da sua análise como uma observação.
+
+    # Damos um nome e uma descrição clara para a ferramenta, instruindo o LLM a usá-la.
+    python_repl.name = "python_code_executor"
+    python_repl.description = """Executa código Python para explorar e analisar os dados em um DataFrame do pandas.
+Use esta ferramenta para responder a QUALQUER pergunta sobre os dados.
+O DataFrame do pandas já está carregado e disponível na variável `df`.
+O código que você escreve DEVE usar a função `print()` para que o resultado seja retornado como uma observação.
+Exemplo de uso: print(df.describe())
     """
-    
+
     return [python_repl]
