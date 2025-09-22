@@ -110,7 +110,14 @@ Histórico do Chat:
 Pergunta: {input}
 Pensamento:{agent_scratchpad}
 """
-    # 5. Cria o agente ReAct manualmente para injetar nosso parser customizado
+    # 5. Preenche as variáveis de ferramentas no prompt.
+    # Este passo é crucial para que o LLM saiba quais ferramentas ele pode usar.
+    prompt = prompt.partial(
+        tools=render_text_description(ferramentas),
+        tool_names=", ".join([t.name for t in ferramentas]),
+    )
+
+    # 6. Cria o agente ReAct manualmente para injetar nosso parser customizado
     llm_with_stop = llm.bind(stop=["\nObservation:"])
     
     agent = (
@@ -122,7 +129,7 @@ Pensamento:{agent_scratchpad}
         | CustomReactOutputParser()
     )
 
-    # 6. Cria o Executor do Agente
+    # 7. Cria o Executor do Agente
     # EXECUTOR ATUALIZADO: Removemos o 'handle_parsing_errors' pois o parser já trata disso.
     agente_executor = AgentExecutor(
         agent=agente,
