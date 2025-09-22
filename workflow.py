@@ -108,7 +108,7 @@ Histórico do Chat:
 {chat_history}
 
 Pergunta: {input}
-Pensamento:{agent_scratchpad}
+{agent_scratchpad}
 """
     # 5. Preenche as variáveis de ferramentas no prompt.
     # Este passo é crucial para que o LLM saiba quais ferramentas ele pode usar.
