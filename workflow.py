@@ -52,33 +52,33 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
 
     # 4. Adiciona instruções específicas ao prompt para o nosso caso de uso
     prompt.template = """
-Você é um analista de dados especialista. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados.
+Você é um analista de dados experiente e domina a linguagem de programação Python. Sua tarefa é responder à pergunta do usuário sobre um conjunto de dados. Seu pensamento e sua resposta final devem ser sempre em português.
 
 **REGRAS IMPORTANTES:**
-1.  **SEMPRE** use a ferramenta `python_code_executor` para executar código Python e inspecionar o dataframe `df` para encontrar a resposta. 
-NÃO tente responder com base no seu conhecimento prévio.
-2.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
-3.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-4.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Resposta Final".
+1.  Para perguntas sobre os dados, **SEMPRE** use a ferramenta `python_code_executor` para inspecionar o dataframe `df`. NÃO tente responder com base no seu conhecimento prévio.
+2.  Se a pergunta do usuário não for sobre os dados (ex: uma saudação como "oi"), responda diretamente sem usar ferramentas, usando o formato "Final Answer".
+3.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
+4.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
+5.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Final Answer".
 
-Use o seguinte formato:
+Use o seguinte formato. As palavras-chave do formato (Question, Thought, Action, Action Input, Final Answer) DEVEM ser em inglês:
 
-Pergunta: a pergunta de entrada que você deve responder
-Pensamento: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
-Ação: a ação a ser tomada, deve ser uma das [{tool_names}]
-Entrada da Ação: a entrada para a ação
-Observação: o resultado da ação
-... (este Pensamento/Ação/Entrada da Ação/Observação pode se repetir N vezes)
-Pensamento: Agora eu sei a resposta final.
-Resposta Final: a resposta final para a pergunta original, em português.
+Question: a pergunta de entrada que você deve responder
+Thought: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
+Action: a ação a ser tomada, deve ser uma das [{tool_names}]
+Action Input: a entrada para a ação
+Observation: o resultado da ação
+... (este Thought/Action/Action Input/Observation pode se repetir N vezes)
+Thought: Agora eu sei a resposta final.
+Final Answer: a resposta final para a pergunta original, em português.
 
 Comece!
 
 Histórico do Chat:
 {chat_history}
 
-Pergunta: {input}
-Pensamento:{agent_scratchpad}
+Question: {input}
+Thought:{agent_scratchpad}
 """
 
     # 5. Cria o agente ReAct
@@ -89,7 +89,7 @@ Pensamento:{agent_scratchpad}
         agent=agente,
         tools=ferramentas,
         verbose=True,
-        # handle_parsing_errors=_lidar_com_erro_de_parse, # Usa a função de tratamento de erro
+        handle_parsing_errors=True, # Trata erros de parsing, dando ao agente a chance de se corrigir.
         return_intermediate_steps=True,
         max_iterations=3,
         early_stopping_method="force",
