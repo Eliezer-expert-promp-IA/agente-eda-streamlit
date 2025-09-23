@@ -3,9 +3,10 @@
 # Importa as bibliotecas e módulos necessários
 import pandas as pd
 from langchain import hub
-from langchain.agents import AgentExecutor, create_react_agent, AgentFinish
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.agents import AgentFinish # Correção: Importado de 'langchain_core'
 from langchain.schema import OutputParserException
-from langchain_google_genai import ChatGoogleGeneraiAI
+from langchain_google_genai import ChatGoogleGenerativeAI # Correção: 'GenerativeAI'
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
