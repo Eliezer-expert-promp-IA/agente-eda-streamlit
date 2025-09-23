@@ -4,6 +4,13 @@ import pandas as pd
 from langchain.tools import tool
 from io import StringIO
 import sys
+import os
+import matplotlib
+# Define o backend do Matplotlib como 'Agg' para evitar que ele tente abrir uma GUI.
+# Isso é crucial para rodar em ambientes de servidor/não-interativos como o Streamlit.
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
 import traceback
 
 # Define um escopo persistente para a execução do código
@@ -17,13 +24,31 @@ def python_code_executor(code: str) -> str:
     Exemplo: print(df.head())
     """
     global _persistent_scope
+
+    # Limpa o estado de qualquer gráfico anterior para evitar sobreposição de plots
+    if 'plt' in _persistent_scope:
+        _persistent_scope['plt'].clf()
+
+    # Limpa o código de entrada para remover possíveis formatações de markdown
+    # que o LLM possa ter incluído, causando um SyntaxError.
+    cleaned_code = code.strip()
+    if cleaned_code.startswith("```python"):
+        cleaned_code = cleaned_code[9:]
+    elif cleaned_code.startswith("```"):
+        cleaned_code = cleaned_code[3:]
+
+    if cleaned_code.endswith("```"):
+        cleaned_code = cleaned_code[:-3]
+
+    cleaned_code = cleaned_code.strip()
+
     try:
         # Redireciona a saída padrão (stdout) para capturar os prints
         old_stdout = sys.stdout
         sys.stdout = captured_output = StringIO()
 
         # Executa o código no escopo persistente
-        exec(code, _persistent_scope)
+        exec(cleaned_code, _persistent_scope)
 
         # Restaura a saída padrão
         sys.stdout = old_stdout
@@ -48,5 +73,15 @@ def criar_ferramentas_analise(df: pd.DataFrame):
     """
     # Inicializa o escopo com o DataFrame e o pandas
     global _persistent_scope
-    _persistent_scope = {'df': df, 'pd': pd}
+    _persistent_scope = {
+        'df': df,
+        'pd': pd,
+        'plt': plt,
+        'sns': sns
+    }
+    # Garante que o diretório para salvar os gráficos exista.
+    # É uma boa prática ter a ferramenta responsável por suas próprias dependências de diretório.
+    if not os.path.exists("temp_charts"):
+        os.makedirs("temp_charts")
+
     return [python_code_executor]

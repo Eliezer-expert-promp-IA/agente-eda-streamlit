@@ -31,7 +31,27 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     llm = None
     try:
         if llm_provider == "Gemini":
-            llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key, temperature=0, convert_system_message_to_human=True)
+            # Adiciona configurações de segurança para evitar bloqueios de resposta da API do Gemini.
+            # Isso previne o erro "ValueError: No generation chunks were returned" e o "ModuleNotFoundError".
+            try:
+                from google.generativeai.types import HarmCategory, HarmBlockThreshold
+                safety_settings = {
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
+            except ImportError:
+                # Fallback para ambientes onde 'google-generativeai' não está instalado corretamente.
+                # Usa valores brutos que são menos robustos a mudanças na biblioteca.
+                # A chave '10' corresponde a HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT.
+                # O valor '4' corresponde a HarmBlockThreshold.BLOCK_NONE.
+                safety_settings = { 10: 4 }
+
+            llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=api_key,
+                temperature=0,
+                convert_system_message_to_human=True,
+                safety_settings=safety_settings
+            )
         elif llm_provider == "OpenAI":
             llm = ChatOpenAI(model=model_name, openai_api_key=api_key, temperature=0)
         elif llm_provider == "Groq":
@@ -61,12 +81,18 @@ Você é um analista de dados experiente e domina a linguagem de programação P
 4.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
 5.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Final Answer".
 
+6.  **PARA GERAR GRÁFICOS:**
+    - Use a biblioteca `matplotlib.pyplot` (disponível como `plt`) ou `seaborn` (disponível como `sns`).
+    - **SEMPRE** salve o gráfico em um arquivo na pasta `temp_charts/` usando `plt.savefig('temp_charts/nome_do_grafico.png')`. Use um nome de arquivo único e descritivo.
+    - **NUNCA** use `plt.show()`, pois isso causará um erro no ambiente de execução.
+    - Após salvar, inclua a tag especial `[CHART_PATH:caminho/do/arquivo.png]` na sua "Final Answer" para que o gráfico possa ser exibido. Exemplo: `Final Answer: Aqui está o gráfico de barras solicitado. [CHART_PATH:temp_charts/fraudes_por_classe.png]`
+
 Use o seguinte formato. As palavras-chave do formato (Question, Thought, Action, Action Input, Final Answer) DEVEM ser em inglês:
 
 Question: a pergunta de entrada que você deve responder
 Thought: você deve sempre pensar sobre o que fazer. O seu pensamento deve ser em português.
 Action: a ação a ser tomada, deve ser uma das [{tool_names}]
-Action Input: a entrada para a ação
+Action Input: o código Python puro para a ação. **IMPORTANTE**: NÃO inclua formatação de markdown como ```python ou ```.
 Observation: o resultado da ação
 ... (este Thought/Action/Action Input/Observation pode se repetir N vezes)
 Thought: Agora eu sei a resposta final.
@@ -91,7 +117,7 @@ Thought:{agent_scratchpad}
         verbose=True,
         handle_parsing_errors=True, # Trata erros de parsing, dando ao agente a chance de se corrigir.
         return_intermediate_steps=True,
-        max_iterations=3,
+        max_iterations=5,
         early_stopping_method="force",
     )
 
