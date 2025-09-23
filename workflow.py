@@ -4,8 +4,8 @@
 import pandas as pd
 from langchain import hub
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.agents import AgentFinish # Correção: Importado de 'langchain_core'
-from langchain.schema import OutputParserException
+# from langchain_core.agents import AgentFinish # Correção: Importado de 'langchain_core'
+# from langchain.schema import OutputParserException
 from langchain_google_genai import ChatGoogleGenerativeAI # Correção: 'GenerativeAI'
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
@@ -13,29 +13,6 @@ from langchain_anthropic import ChatAnthropic
 
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
-
-# FUNÇÃO DE SEGURANÇA: Resgata a resposta final se o parser padrão falhar.
-def _lidar_com_erro_de_parse(error: OutputParserException) -> AgentFinish:
-    """
-    Função de fallback para analisar a saída do LLM e extrair a resposta final.
-    É chamada quando o parser padrão falha.
-    """
-    # A saída bruta do LLM que causou o erro está no atributo 'llm_output'.
-    saida_llm = error.llm_output
-    
-    # Procura pela nossa palavra-chave de resposta final na saída bruta.
-    if "Resposta Final:" in saida_llm:
-        # Extrai o texto que vem depois da palavra-chave.
-        texto_apos_keyword = saida_llm.split("Resposta Final:")[-1].strip()
-        
-        # Retorna um objeto AgentFinish, que o executor entende como uma conclusão bem-sucedida.
-        # Isso popula o campo 'output' que o Streamlit usa para exibir a resposta.
-        return AgentFinish({"output": texto_apos_keyword}, log=saida_llm)
-    
-    # Se não encontrar a resposta final, retorna uma mensagem de erro genérica.
-    log_completo = str(error)
-    return AgentFinish({"output": f"Desculpe, não consegui extrair uma resposta final. Erro: {log_completo}"}, log=log_completo)
-
 
 def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_name: str):
     """
@@ -112,7 +89,7 @@ Pensamento:{agent_scratchpad}
         agent=agente,
         tools=ferramentas,
         verbose=True,
-        handle_parsing_errors=_lidar_com_erro_de_parse, # Usa a função de tratamento de erro
+        # handle_parsing_errors=_lidar_com_erro_de_parse, # Usa a função de tratamento de erro
         return_intermediate_steps=True,
         max_iterations=3,
         early_stopping_method="force",
