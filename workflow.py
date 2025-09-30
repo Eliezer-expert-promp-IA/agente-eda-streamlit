@@ -15,6 +15,58 @@ from langchain_anthropic import ChatAnthropic
 # Importa as ferramentas personalizadas do nosso módulo
 from tools.custom_tools import criar_ferramentas_analise
 
+def _get_llm_instance(llm_provider: str, api_key: str, model_name: str):
+    """
+    Função fábrica para instanciar e retornar o modelo de linguagem (LLM) correto.
+    """
+    if llm_provider == "Gemini":
+        try:
+            from google.generativeai.types import HarmCategory, HarmBlockThreshold
+            safety_settings = { HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE }
+        except ImportError:
+            safety_settings = { 10: 4 }
+
+        return ChatGoogleGenerativeAI(
+            model=model_name,
+            google_api_key=api_key,
+            temperature=0,
+            convert_system_message_to_human=True,
+            safety_settings=safety_settings
+        )
+    
+    elif llm_provider == "LLM de Teste (Gemini)":
+        test_api_key = os.getenv("TEST_GEMINI_API_KEY")
+        test_model_name = os.getenv("TEST_GEMINI_MODEL_NAME")
+        if not test_api_key or not test_model_name:
+            # Levanta uma exceção que será capturada na função principal
+            raise ValueError("As variáveis TEST_GEMINI_API_KEY e TEST_GEMINI_MODEL_NAME não foram encontradas.")
+        
+        try:
+            from google.generativeai.types import HarmCategory, HarmBlockThreshold
+            safety_settings = { HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE }
+        except ImportError:
+            safety_settings = { 10: 4 }
+        
+        return ChatGoogleGenerativeAI(
+            model=test_model_name,
+            google_api_key=test_api_key,
+            temperature=0,
+            convert_system_message_to_human=True,
+            safety_settings=safety_settings
+        )
+
+    elif llm_provider == "OpenAI":
+        return ChatOpenAI(model=model_name, openai_api_key=api_key, temperature=0)
+    
+    elif llm_provider == "Groq":
+        return ChatGroq(model_name=model_name, groq_api_key=api_key, temperature=0)
+    
+    elif llm_provider == "Anthropic":
+        return ChatAnthropic(model=model_name, anthropic_api_key=api_key, temperature=0)
+    
+    else:
+        raise ValueError(f"Provedor de LLM desconhecido: {llm_provider}")
+
 def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_name: str):
     """
     Cria e compila o workflow do agente ReAct para análise de dados.
@@ -31,58 +83,13 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
     # 1. Instância do modelo de linguagem com base na seleção do usuário
     llm = None
     try:
-        if llm_provider == "Gemini":
-            # Adiciona configurações de segurança para evitar bloqueios de resposta da API do Gemini.
-            # Isso previne o erro "ValueError: No generation chunks were returned" e o "ModuleNotFoundError".
-            try:
-                from google.generativeai.types import HarmCategory, HarmBlockThreshold
-                safety_settings = {
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            except ImportError:
-                # Fallback para ambientes onde 'google-generativeai' não está instalado corretamente.
-                # Usa valores brutos que são menos robustos a mudanças na biblioteca.
-                # A chave '10' corresponde a HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT.
-                # O valor '4' corresponde a HarmBlockThreshold.BLOCK_NONE.
-                safety_settings = { 10: 4 }
-
-            llm = ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=api_key,
-                temperature=0,
-                convert_system_message_to_human=True,
-                safety_settings=safety_settings
-            )
-        elif llm_provider == "LLM de Teste (Gemini)":
-            test_api_key = os.getenv("TEST_GEMINI_API_KEY")
-            test_model_name = os.getenv("TEST_GEMINI_MODEL_NAME")
-            if not test_api_key or not test_model_name:
-                raise ValueError("As variáveis TEST_GEMINI_API_KEY e TEST_GEMINI_MODEL_NAME devem ser definidas no arquivo .env.")
-            try:
-                from google.generativeai.types import HarmCategory, HarmBlockThreshold
-                safety_settings = { HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE }
-            except ImportError:
-                safety_settings = { 10: 4 }
-            
-            llm = ChatGoogleGenerativeAI(
-                model=test_model_name,
-                google_api_key=test_api_key,
-                temperature=0,
-                convert_system_message_to_human=True,
-                safety_settings=safety_settings
-            )
-        elif llm_provider == "OpenAI":
-            llm = ChatOpenAI(model=model_name, openai_api_key=api_key, temperature=0)
-        elif llm_provider == "Groq":
-            llm = ChatGroq(model_name=model_name, groq_api_key=api_key, temperature=0)
-        elif llm_provider == "Anthropic":
-            llm = ChatAnthropic(model=model_name, anthropic_api_key=api_key, temperature=0)
-        else:
-            raise ValueError(f"Provedor de LLM desconhecido: {llm_provider}")
+        llm = _get_llm_instance(llm_provider, api_key, model_name)
     except Exception as e:
         # Imprime o erro completo no console para depuração
         print(f"ERRO ao instanciar o LLM: {e}")
         # Retorna uma mensagem de erro segura para a interface do usuário
+        if isinstance(e, ValueError):
+            return f"Erro de configuração: {e}"
         return "Falha ao criar o agente. Verifique se sua chave de API e o nome do modelo estão corretos e válidos."
 
     # 2. Cria a lista de ferramentas que o agente pode usar

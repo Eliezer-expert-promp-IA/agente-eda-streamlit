@@ -2,6 +2,10 @@
 
 Este projeto é um agente autônomo construído com Python, Streamlit e LangChain, projetado para realizar Análise Exploratória de Dados (EDA) em arquivos CSV e Excel. O usuário pode interagir com seus dados através de uma interface de chat, fazendo perguntas em linguagem natural para obter insights, gerar visualizações
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://eliezer-eda-i2a2.streamlit.app/)
+
+**Acesse a demonstração ao vivo:** [https://eliezer-eda-i2a2.streamlit.app/](https://eliezer-eda-i2a2.streamlit.app/)
+
 ## 🎯 Funcionalidades Principais
 
 - **Análise via Chat**: Faça perguntas em linguagem natural sobre seu conjunto de dados.
@@ -131,6 +135,23 @@ Sim, existe correlação entre as variáveis, mas a maioria das variáveis 'V' (
 
 ![Heatmap de Correlação](image-2.png)
 
+---
+#### Exemplo 5:
+
+**Pergunta do Usuário:**
+```
+Quais suas conclusões sobre as perguntas?
+```
+
+**Resposta do Agente:**
+
+Com base nas análises anteriores, podemos concluir o seguinte:
+
+* Tipos de Dados: O conjunto de dados é composto inteiramente por variáveis numéricas, sem a presença de dados categóricos.
+* Agrupamentos: Os dados apresentam agrupamentos claros definidos pela coluna 'Class', que distingue entre transações normais (Classe 0) e fraudulentas (Classe 1). Há uma desproporção significativa, com muito mais transações normais do que fraudulentas.
+* Valores Atípicos: A coluna 'Amount' exibe a presença de valores atípicos, indicando transações com valores que se desviam consideravelmente da maioria.
+* Correlações: A maioria das variáveis de identificação ('V1' a 'V28') possui baixa correlação entre si. A variável 'Amount' apresenta correlações negativas moderadas com algumas dessas variáveis 'V'. A variável 'Class' tem correlações fracas com a maioria das outras variáveis, sugerindo que a identificação de fraudes pode depender de combinações complexas de fatores ou de outras métricas não diretamente capturadas por correlações lineares simples. A matriz de correlação completa foi gerada e está disponível. de combinações complexas de fatores ou de outras métricas não diretamente capturadas por correlações lineares simples. A matriz de correlação completa foi gerada e está disponível.
+---
 
 ## 🛠️ Tecnologias Utilizadas
 
