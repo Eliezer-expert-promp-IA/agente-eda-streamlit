@@ -9,6 +9,7 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI # Correção: 'GenerativeAI'
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+import os
 from langchain_anthropic import ChatAnthropic
 
 # Importa as ferramentas personalizadas do nosso módulo
@@ -52,6 +53,24 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
                 convert_system_message_to_human=True,
                 safety_settings=safety_settings
             )
+        elif llm_provider == "LLM de Teste (Gemini)":
+            test_api_key = os.getenv("TEST_GEMINI_API_KEY")
+            test_model_name = os.getenv("TEST_GEMINI_MODEL_NAME")
+            if not test_api_key or not test_model_name:
+                raise ValueError("As variáveis TEST_GEMINI_API_KEY e TEST_GEMINI_MODEL_NAME devem ser definidas no arquivo .env.")
+            try:
+                from google.generativeai.types import HarmCategory, HarmBlockThreshold
+                safety_settings = { HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE }
+            except ImportError:
+                safety_settings = { 10: 4 }
+            
+            llm = ChatGoogleGenerativeAI(
+                model=test_model_name,
+                google_api_key=test_api_key,
+                temperature=0,
+                convert_system_message_to_human=True,
+                safety_settings=safety_settings
+            )
         elif llm_provider == "OpenAI":
             llm = ChatOpenAI(model=model_name, openai_api_key=api_key, temperature=0)
         elif llm_provider == "Groq":
@@ -79,7 +98,7 @@ Você é um analista de dados experiente e domina a linguagem de programação P
 2.  Se a pergunta do usuário não for sobre os dados (ex: uma saudação como "oi"), responda diretamente sem usar ferramentas, usando o formato "Final Answer".
 3.  O DataFrame pandas com os dados já está carregado e disponível na variável `df`.
 4.  O código que você escreve para a ferramenta DEVE usar `print()` para que o resultado seja visível.
-5.  Você tem um limite de 3 passos (Pensamento/Ação). Se você não conseguir a resposta final em 3 passos, resuma suas descobertas na "Final Answer".
+5.  Você tem um limite de 5 passos (Pensamento/Ação). Se você não conseguir a resposta final em 5 passos, resuma suas descobertas na "Final Answer".
 
 6.  **PARA GERAR GRÁFICOS:**
     - Use a biblioteca `matplotlib.pyplot` (disponível como `plt`) ou `seaborn` (disponível como `sns`).

@@ -17,7 +17,7 @@ st.set_page_config(page_title="Agente de Análise de Dados", layout="wide")
 # Inicializa o estado da sessão se não existir
 def inicializar_estado_sessao():
     if "mensagens" not in st.session_state:
-        st.session_state.mensagens = [{"role": "assistant", "content": "Olá! Configure o LLM na barra lateral e carregue um arquivo CSV ou Excel para começar."}]
+        st.session_state.mensagens = []
     if "agente_analise" not in st.session_state:
         st.session_state.agente_analise = None
     if "df" not in st.session_state:
@@ -29,7 +29,6 @@ inicializar_estado_sessao()
 # --- Layout da Aplicação (Sidebar e Chat) ---
 
 st.title("👨‍🔬 Agente Autônomo de Análise de Dados")
-st.write("Configure seu LLM, carregue um arquivo CSV ou Excel e faça perguntas para analisá-lo.")
 
 with st.sidebar:
     st.header("⚙️ Configuração do LLM")
@@ -37,30 +36,36 @@ with st.sidebar:
     # Seleção do provedor de LLM
     llm_provider = st.selectbox(
         "Escolha o Provedor de LLM:",
-        ("Gemini", "OpenAI", "Groq", "Anthropic")
+        ("LLM de Teste (Gemini)", "Gemini", "OpenAI", "Groq", "Anthropic")
     )
 
-    # Campo para a chave de API
-    api_key = st.text_input("Insira sua Chave de API:", type="password")
+    api_key = ""
+    model_name = ""
 
-    # Campo para o nome do modelo com placeholders
-    model_name_placeholder = {
-        "Gemini": "gemini-1.5-flash-latest",
-        "OpenAI": "gpt-4-turbo",
-        "Groq": "llama3-70b-8192",
-        "Anthropic": "claude-3-opus-20240229"
-    }.get(llm_provider, "Insira o nome do modelo")
-    
-    model_name = st.text_input("Nome do Modelo:", placeholder=model_name_placeholder)
+    # Oculta os campos de API e modelo se o LLM de teste for selecionado
+    if llm_provider != "LLM de Teste (Gemini)":
+        # Campo para a chave de API
+        api_key = st.text_input("Insira sua Chave de API:", type="password")
+
+        # Campo para o nome do modelo com placeholders
+        model_name_placeholder = {
+            "Gemini": "gemini-1.5-flash-latest",
+            "OpenAI": "gpt-4-turbo",
+            "Groq": "llama3-70b-8192",
+            "Anthropic": "claude-3-opus-20240229"
+        }.get(llm_provider, "Insira o nome do modelo")
+        
+        model_name = st.text_input("Nome do Modelo:", placeholder=model_name_placeholder)
 
     st.header("📂 Upload de Dados")
     uploaded_file = st.file_uploader("Escolha um arquivo CSV ou Excel", type=["csv", "xls", "xlsx"])
 
     # Botão para criar/atualizar o agente
     if st.button("Criar/Atualizar Agente"):
-        if not api_key:
+        # Validação condicional da chave de API
+        if llm_provider != "LLM de Teste (Gemini)" and not api_key:
             st.warning("Por favor, insira sua chave de API.")
-        elif not model_name:
+        elif llm_provider != "LLM de Teste (Gemini)" and not model_name:
             st.warning(f"Por favor, insira o nome do modelo. Sugestão: `{model_name_placeholder}`")
         elif uploaded_file is None:
             st.warning("Por favor, carregue um arquivo CSV ou Excel.")
@@ -99,6 +104,42 @@ with st.sidebar:
                     st.session_state.df = None
                     st.session_state.agente_analise = None
 
+# --- Exibição da Interface Principal ---
+
+# Se o agente ainda não foi criado, exibe a tela de boas-vindas.
+if st.session_state.agente_analise is None:
+    st.info("👋 **Bem-vindo ao Agente de Análise de Dados!** Configure o LLM e carregue seu arquivo na barra lateral para começar.")
+    
+    st.markdown("### 🎯 Funcionalidades Principais")
+    st.markdown("""
+    - **Análise Exploratória Automática:** Descubra as características, tipos de dados e estatísticas descritivas do seu dataset.
+    - **Visualizações Inteligentes:** Gere gráficos de barras, histogramas, gráficos de dispersão e mais, de forma automática.
+    - **Insights sob Demanda:** Faça perguntas em linguagem natural para extrair informações, resumos e realizar cálculos.
+    - **Portabilidade de LLMs:** Escolha seu provedor preferido (Gemini, OpenAI, Groq, Anthropic) com sua própria chave de API.
+    """)
+
+    st.markdown("### 🚀 Como Começar")
+    st.markdown("""
+    1.  **Configure o LLM:** Na barra lateral, escolha o provedor, insira sua chave de API e o nome do modelo.
+    2.  **Faça o Upload:** Carregue um arquivo CSV ou Excel (limite de 200MB).
+    3.  **Crie o Agente:** Clique no botão "Criar/Atualizar Agente".
+    4.  **Inicie a Análise:** Após a confirmação, a interface de chat aparecerá. Faça sua primeira pergunta!
+    """)
+
+    st.markdown("### 💡 Exemplos de Perguntas")
+    st.markdown("""
+    - "Faça uma análise exploratória inicial dos dados."
+    - "Qual a quantidade de fraudes?"
+    - "Gere um gráfico de barras mostrando a contagem de fraudes."
+    """)
+    st.warning("**Aviso:** O agente tem um limite de 5 interações por pergunta. Para análises complexas, divida sua pergunta em partes menores.")
+
+# Se o agente já foi criado, exibe a interface de chat.
+else:
+    for mensagem in st.session_state.mensagens:
+        with st.chat_message(mensagem["role"]):
+            st.write(mensagem["content"])
+
 # Exibe o histórico do chat
 for mensagem in st.session_state.mensagens:
     with st.chat_message(mensagem["role"]):
@@ -120,14 +161,19 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
     with st.chat_message("assistant"):
         with st.spinner("Analisando..."):
             # Prepara a entrada para o agente, incluindo o histórico do chat
+            # Simplificado para usar a estrutura de mensagens diretamente,
+            # que já é limpa e não contém dados de UI.
             entrada_agente = {
                 "input": prompt,
-                "chat_history": [msg for msg in st.session_state.mensagens if msg['role'] != 'assistant' or 'passos:' not in msg['content']]
+                "chat_history": st.session_state.mensagens
             }
 
             try:
                 # Invoca o agente
                 resposta = st.session_state.agente_analise.invoke(entrada_agente)
+
+                # Variável para armazenar a resposta limpa para o histórico
+                resposta_limpa_para_historico = ""
 
                 # Exibe os passos intermediários do agente de forma estruturada
                 with st.expander("Ver Raciocínio do Agente", expanded=False):
@@ -174,12 +220,14 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
                         st.markdown("##### Observação")
                         st.markdown(ultima_observacao)
                     # Adiciona a mensagem de erro ao histórico
-                    st.session_state.mensagens.append({"role": "assistant", "content": "A análise não foi concluída no tempo limite."})
+                    resposta_limpa_para_historico = "A análise não foi concluída no tempo limite."
                 else:
                     # Se o agente concluiu, processa a resposta final normalmente
+                    resposta_limpa_para_historico = resposta_final
                     # Lógica robusta para extrair e exibir um ou mais gráficos
                     chart_tag = "[CHART_PATH:"
                     if chart_tag in resposta_final:
+                        resposta_limpa_para_historico = re.sub(r'\[CHART_PATH:.*?\]', '', resposta_final).strip()
                         parts = resposta_final.split(chart_tag)
                         if parts[0].strip():
                             st.write(parts[0])
@@ -197,8 +245,10 @@ if prompt := st.chat_input("Qual sua pergunta sobre os dados?"):
                                 st.write(f"{chart_tag}{part}")
                     else:
                         st.write(resposta_final)
-                    # Adiciona a resposta COMPLETA do agente ao histórico para consistência
-                    st.session_state.mensagens.append({"role": "assistant", "content": resposta_final})
+                
+                # Adiciona a resposta limpa (sem tags de gráfico) do agente ao histórico
+                if resposta_limpa_para_historico:
+                    st.session_state.mensagens.append({"role": "assistant", "content": resposta_limpa_para_historico})
             except Exception as e:
                 st.error("Ocorreu um erro durante a execução do agente. Veja os detalhes abaixo:")
                 st.exception(e)
