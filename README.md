@@ -87,9 +87,8 @@ None
 ```
 Todas as colunas no conjunto de dados são de tipos numéricos. As colunas 'Time', 'V1' a 'V28', e 'Amount' são do tipo float64, enquanto a coluna 'Class' é do tipo int64. Não há colunas categóricas presentes.
 ```
-*(![alt text](image.png))*
+![Exemplo de Análise de Tipos de Dados](image.png)
 
----
 #### Exemplo 2:
 
 **Pergunta do Usuário:**
@@ -197,7 +196,7 @@ Crie um arquivo chamado `.env` na raiz do projeto, copiando o conteúdo de `.env
 
 # Chave e modelo para o "LLM de Teste (Gemini)"
 TEST_GEMINI_API_KEY="sua_chave_api_do_google_aqui"
-TEST_GEMINI_MODEL_NAME="gemini-1.5-flash-latest"
+TEST_GEMINI_MODEL_NAME="gemini-2.5-flash-latest"
 
 # Você pode adicionar outras chaves se quiser usar outros provedores
 # OPENAI_API_KEY="sk-..."
@@ -222,3 +221,8 @@ streamlit run main.py
 ```
 
 A aplicação será aberta no seu navegador padrão.
+
+Ou você pode testar pelo link abaixo:
+```bash
+https://eliezer-eda-i2a2.streamlit.app/
+```
