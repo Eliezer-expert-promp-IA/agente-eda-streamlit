@@ -100,9 +100,15 @@ with st.sidebar:
                         st.dataframe(df.head())
 
                 except Exception as e:
-                    st.error(f"Erro ao processar: {e}")
+                    # Imprime o erro completo no console para depuração
+                    print(f"ERRO ao criar o agente ou processar o arquivo: {e}")
+                    # Exibe uma mensagem de erro genérica e segura para o usuário
+                    st.error("Ocorreu uma falha ao configurar o agente. Verifique as configurações do LLM e o arquivo enviado.")
+                    # Garante que o estado do agente seja limpo em caso de erro
                     st.session_state.df = None
                     st.session_state.agente_analise = None
+                    # Força a re-renderização da página para mostrar a tela de boas-vindas
+                    st.rerun()
 
 # --- Exibição da Interface Principal ---
 
@@ -139,11 +145,6 @@ else:
     for mensagem in st.session_state.mensagens:
         with st.chat_message(mensagem["role"]):
             st.write(mensagem["content"])
-
-# Exibe o histórico do chat
-for mensagem in st.session_state.mensagens:
-    with st.chat_message(mensagem["role"]):
-        st.write(mensagem["content"])
 
 # --- Lógica do Chat ---
 
