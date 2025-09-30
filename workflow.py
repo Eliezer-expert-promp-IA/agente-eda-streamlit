@@ -80,8 +80,10 @@ def criar_fluxo_agente(df: pd.DataFrame, llm_provider: str, api_key: str, model_
         else:
             raise ValueError(f"Provedor de LLM desconhecido: {llm_provider}")
     except Exception as e:
-        # Retorna a exceção para ser exibida na interface do usuário
-        return e
+        # Imprime o erro completo no console para depuração
+        print(f"ERRO ao instanciar o LLM: {e}")
+        # Retorna uma mensagem de erro segura para a interface do usuário
+        return "Falha ao criar o agente. Verifique se sua chave de API e o nome do modelo estão corretos e válidos."
 
     # 2. Cria a lista de ferramentas que o agente pode usar
     ferramentas = criar_ferramentas_analise(df)

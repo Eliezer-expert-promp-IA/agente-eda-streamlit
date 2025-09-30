@@ -1,0 +1,25 @@
+# Arquivos de ambiente
+.env
+
+# Diretórios de ambiente virtual
+.venv/
+venv/
+ENV/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pasta de gráficos temporários
+temp_charts/
+
+# Arquivos de configuração de IDEs
+.vscode/
+.idea/
+
+# Arquivos de build e distribuição
+build/
+dist/
+*.egg-info/

@@ -89,8 +89,8 @@ with st.sidebar:
                     agente = criar_fluxo_agente(df, llm_provider, api_key, model_name)
                     
                     # Verifica se a criação do agente retornou um erro
-                    if isinstance(agente, Exception):
-                        st.error(f"Erro ao criar o agente: {agente}")
+                    if isinstance(agente, str): # A função agora retorna uma string em caso de erro
+                        st.error(agente) # Exibe a mensagem de erro segura
                         st.session_state.agente_analise = None
                     else:
                         st.session_state.agente_analise = agente
