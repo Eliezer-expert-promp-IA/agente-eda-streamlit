@@ -19,36 +19,119 @@ Este projeto é um agente autônomo construído com Python, Streamlit e LangChai
 
 ## 🚀 Exemplos de Uso
 
-> **[EDITAR]** - *Substitua o texto e as imagens abaixo pelos seus próprios exemplos de perguntas e respostas.*
-
 #### Exemplo 1: Análise Exploratória Inicial
 
 **Pergunta do Usuário:**
 ```
-Faça uma análise exploratória inicial dos dados.
+Quais são os tipos de dados (numéricos, categóricos)?
 ```
 
+**Raciocínio do Agente:**
+```
+🔄 Ciclo 1
+1. Pensamento
+A pergunta é sobre os tipos de dados presentes no DataFrame. Para responder a isso, preciso inspecionar os tipos de dados de cada coluna no DataFrame `df`. A função `df.info()` é ideal para isso, pois ela lista todas as colunas, o número de entradas não nulas e o tipo de dado de cada coluna.
+Action: python_code_executor
+Action Input: print(df.info())
+2. Ação
+Ferramenta: python_code_executor
+
+Entrada da Ação (código executado):
+
+print(df.info())
+
+3. Observação
+Execução bem-sucedida. Saída:
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 284807 entries, 0 to 284806
+Data columns (total 31 columns):
+ #   Column  Non-Null Count   Dtype  
+---  ------  --------------   -----  
+ 0   Time    284807 non-null  float64
+ 1   V1      284807 non-null  float64
+ 2   V2      284807 non-null  float64
+ 3   V3      284807 non-null  float64
+ 4   V4      284807 non-null  float64
+ 5   V5      284807 non-null  float64
+ 6   V6      284807 non-null  float64
+ 7   V7      284807 non-null  float64
+ 8   V8      284807 non-null  float64
+ 9   V9      284807 non-null  float64
+ 10  V10     284807 non-null  float64
+ 11  V11     284807 non-null  float64
+ 12  V12     284807 non-null  float64
+ 13  V13     284807 non-null  float64
+ 14  V14     284807 non-null  float64
+ 15  V15     284807 non-null  float64
+ 16  V16     284807 non-null  float64
+ 17  V17     284807 non-null  float64
+ 18  V18     284807 non-null  float64
+ 19  V19     284807 non-null  float64
+ 20  V20     284807 non-null  float64
+ 21  V21     284807 non-null  float64
+ 22  V22     284807 non-null  float64
+ 23  V23     284807 non-null  float64
+ 24  V24     284807 non-null  float64
+ 25  V25     284807 non-null  float64
+ 26  V26     284807 non-null  float64
+ 27  V27     284807 non-null  float64
+ 28  V28     284807 non-null  float64
+ 29  Amount  284807 non-null  float64
+ 30  Class   284807 non-null  int64  
+dtypes: float64(30), int64(1)
+memory usage: 67.4 MB
+None
+```
 **Resposta do Agente:**
 ```
-Claro. O conjunto de dados possui 1000 linhas e 5 colunas. As colunas são 'ID', 'Idade', 'Salário', 'Produto' e 'Fraude'. A média de idade é 38.5 anos e o salário médio é de R$ 55.000. A coluna 'Fraude' é do tipo booleano, indicando a ocorrência de fraude.
+Todas as colunas no conjunto de dados são de tipos numéricos. As colunas 'Time', 'V1' a 'V28', e 'Amount' são do tipo float64, enquanto a coluna 'Class' é do tipo int64. Não há colunas categóricas presentes.
 ```
+*(![alt text](image.png))*
 
 ---
-
-#### Exemplo 2: Geração de Gráfico
+#### Exemplo 2:
 
 **Pergunta do Usuário:**
 ```
-Gere um gráfico de barras mostrando a contagem de fraudes.
+Existem agrupamentos (clusters) nos dados? .
 ```
 
 **Resposta do Agente:**
 
-Aqui está o gráfico de barras mostrando a contagem de fraudes e não fraudes.
+Sim, existem agrupamentos nos dados, claramente definidos pela coluna 'Class'. A análise da contagem de valores na coluna 'Class' mostra que há 284.315 transações normais (Classe 0) e 492 transações fraudulentas (Classe 1). O gráfico de distribuição do valor (Amount) por classe ilustra como essas transações se distribuem em relação ao valor, indicando que os agrupamentos são distinguíveis.
 
-*(Cole a imagem do seu gráfico aqui. Ex: `!Gráfico de Fraudes`)*
+![Gráfico de Distribuição por Classe](image-1.png)
+
+
+#### Exemplo 3:
+
+**Pergunta do Usuário:**
+```
+Existem valores atípicos nos dados?
+```
+
+**Resposta do Agente:**
+
+Sim, existem valores atípicos nos dados, especialmente na coluna 'Amount'. O boxplot da distribuição do valor (Amount) por classe mostra claramente a presença de muitos valores extremos, tanto para transações normais quanto para as fraudulentas. Esses valores atípicos são pontos de dados que se desviam significativamente da maioria dos dados.
 
 ---
+
+---
+
+#### Exemplo 4:
+
+**Pergunta do Usuário:**
+```
+Existe correlação entre as variáveis?
+```
+
+**Resposta do Agente:**
+
+Sim, existe correlação entre as variáveis, mas a maioria das variáveis 'V' (V1 a V28) apresenta correlações muito baixas entre si, indicando independência. A variável 'Amount' tem correlações negativas moderadas com algumas variáveis 'V' (como V2, V5, V7, V10, V17, V20). A variável 'Class' (indicando transações normais ou fraudulentas) tem correlações muito fracas com a maioria das outras variáveis, com algumas correlações negativas fracas com V1, V3, V7, V14, V17 e positivas fracas com V4, V11, V12, V13, V26. O gráfico da matriz de correlação está disponível em temp_charts/correlation_heatmap.png.
+
+![Heatmap de Correlação](image-2.png)
+
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -114,7 +197,7 @@ Crie um arquivo chamado `.env` na raiz do projeto, copiando o conteúdo de `.env
 
 # Chave e modelo para o "LLM de Teste (Gemini)"
 TEST_GEMINI_API_KEY="sua_chave_api_do_google_aqui"
-TEST_GEMINI_MODEL_NAME="gemini-.5-flash"
+TEST_GEMINI_MODEL_NAME="gemini-1.5-flash-latest"
 
 # Você pode adicionar outras chaves se quiser usar outros provedores
 # OPENAI_API_KEY="sk-..."
